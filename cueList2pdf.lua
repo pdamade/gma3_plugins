@@ -530,7 +530,6 @@ local function Main(displayHandle,argument)
     debuggee.print("log", "start")
     
     local datetime = os.date("Created at: %d.%m.%Y %H:%M")
-	local fileNameSuggestion = os.date("patch_export_%d-%m-%Y-%H-%M")
 	local softwareVersion = Version()
     
     --Utils
@@ -575,6 +574,23 @@ local function Main(displayHandle,argument)
         Printf("You have selected Sequence " .. selectedSequence.Name)
     end
 
+    local fileNameSuggestion = os.date("cue_list_export_%d-%m-%Y-%H-%M_" .. selectedSequence.Name)
+
+    -- ================ WELCOME POPUP =====================
+    local settings =
+	MessageBox(
+	{
+		title = "Patch 2 PDF",
+		message = "Please adjust these settings as needed.",
+		display = displayHandle.index,
+		inputs = {
+			{value = fileNameSuggestion, name = "PDF title"}, 
+			{value = CurrentUser().name, name = "Author"}}
+	    ,
+        commands = {{value = 1, name = "Export"}, {value = 2, name = "Cancel"}},
+    }
+    )
+
 -- ==================== GET CUE DATA ===================================
     -- Iterate through cues
     local cues = selectedSequence:Children()
@@ -604,10 +620,10 @@ local function Main(displayHandle,argument)
     --Export data
     local exportPath = GetPath(Enums.PathType.Library) .. "/datapools/plugins/cueList2pdf/" .. selectedSequence.Name .. "cueListExport.pdf"
     local exportData = {}
-    --local fileName = settings.inputs["PDF title"]
-    --local author = settings.inputs["Author"]
-    local fileName = "cueListExport" .. selectedSequence.Name
-    local author = "P"
+    local fileName = settings.inputs["PDF title"]
+    local author = settings.inputs["Author"]
+    --local fileName = "cueListExport" .. selectedSequence.Name
+    --local author = "P"
     -- Create a new PDF document
     local p = PDF.new()
 
@@ -626,31 +642,42 @@ local function Main(displayHandle,argument)
     local textSize = 10
 	local headerSize = 22
 
-    page:begin_text()
-	page:set_font(bold, headerSize)
-	page:set_text_pos(20, 725)
-	page:show(documentTitle)
-	page:end_text()
+    function printDocumentHeader(page)
+        page:begin_text()
+        page:set_font(bold, headerSize)
+        page:set_text_pos(20, 725)
+        page:show(documentTitle)
+        page:end_text()
 
-    page:begin_text()
-	page:set_font(helv, textSize)
-	page:set_text_pos(20, 685)
-	page:show("Software version: " .. softwareVersion)
-	page:end_text()
+        page:begin_text()
+        page:set_font(helv, textSize)
+        page:set_text_pos(20, 685)
+        page:show("Software version: " .. softwareVersion)
+        page:end_text()
 
-	page:begin_text()
-	page:set_font(helv, textSize)
-	page:set_text_pos(20, 670)
-	page:show("Showfile: " .. Root().manetsocket.showfile)
-	page:end_text()
+        page:begin_text()
+        page:set_font(helv, textSize)
+        page:set_text_pos(20, 670)
+        page:show("Showfile: " .. Root().manetsocket.showfile)
+        page:end_text()
 
-	page:begin_text()
-	page:set_font(helv, textSize)
-	page:set_text_pos(20, 655)
-	page:show("Author: " .. author)
-	page:end_text()
 
-    page:restore()
+        page:begin_text()
+        page:set_font(helv, textSize)
+        page:set_text_pos(20, 655)
+        page:show("Sequence: " .. selectedSequence.Name)
+        page:end_text()
+
+        page:begin_text()
+        page:set_font(helv, textSize)
+        page:set_text_pos(20, 640)
+        page:show("Author: " .. author)
+        page:end_text()
+
+        page:restore()
+    end
+
+    printDocumentHeader(page)
 
     function printTableHeader(page, yPos)
 		page:begin_text()
