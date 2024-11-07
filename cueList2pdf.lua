@@ -528,6 +528,11 @@ local yPosStageName = 770
 local function Main(displayHandle,argument)
     require 'gma3_debug'()
     debuggee.print("log", "start")
+    
+    local datetime = os.date("Created at: %d.%m.%Y %H:%M")
+	local fileNameSuggestion = os.date("patch_export_%d-%m-%Y-%H-%M")
+	local softwareVersion = Version()
+    
     --Utils
     function toSeconds(fadeTime)
         local value = "0"
@@ -621,6 +626,71 @@ local function Main(displayHandle,argument)
     local textSize = 10
 	local headerSize = 22
 
+    page:begin_text()
+	page:set_font(bold, headerSize)
+	page:set_text_pos(20, 725)
+	page:show(documentTitle)
+	page:end_text()
+
+    page:begin_text()
+	page:set_font(helv, textSize)
+	page:set_text_pos(20, 685)
+	page:show("Software version: " .. softwareVersion)
+	page:end_text()
+
+	page:begin_text()
+	page:set_font(helv, textSize)
+	page:set_text_pos(20, 670)
+	page:show("Showfile: " .. Root().manetsocket.showfile)
+	page:end_text()
+
+	page:begin_text()
+	page:set_font(helv, textSize)
+	page:set_text_pos(20, 655)
+	page:show("Author: " .. author)
+	page:end_text()
+
+    page:restore()
+
+    function printTableHeader(page, yPos)
+		page:begin_text()
+		page:set_font(bold, textSize)
+		page:set_text_pos(xPosType, yPos)
+		page:show("Cue No.")
+		page:end_text()
+
+		page:begin_text()
+		page:set_font(bold, textSize)
+		page:set_text_pos(xPosID, yPos)
+		page:show("Part")
+		page:end_text()
+
+		page:begin_text()
+		page:set_font(bold, textSize)
+		page:set_text_pos(xPosFixtureType, yPos)
+		page:show("Name")
+		page:end_text()
+
+		page:begin_text()
+		page:set_font(bold, textSize)
+		page:set_text_pos(xPosFixtureName, yPos)
+		page:show("Info")
+		page:end_text()
+
+		page:begin_text()
+		page:set_font(bold, textSize)
+		page:set_text_pos(xPosPatch, yPos)
+		page:show("Fade In")
+		page:end_text()
+
+		page:setrgbcolor("stroke", 0, 0, 0)
+		page:moveto(20, yPos-10)
+		page:lineto(590, yPos-10)
+		page:stroke()
+	end
+
+	printTableHeader(page, yPosHeaderRow)
+
     local currentY = 570
 	local currentPage = page
 	local pageCount = 1
@@ -632,16 +702,6 @@ local function Main(displayHandle,argument)
 	local maxFixtureTypeNameLength = 45
 	local maxFixtureNameLength = 32
 	local maxStageNameLength = 80
-
-    page:begin_text()
-	page:set_font(bold, headerSize)
-	page:set_text_pos(20, 725)
-	page:show("title")
-	page:end_text()
-
-    page:restore()
-   
--- ============================ END PDF STUFF =============================
 
     for k,v in pairs(pages) do
 		-- Add pagination to the page
@@ -665,6 +725,7 @@ local function Main(displayHandle,argument)
     local storagePath = GetPath(Enums.PathType.Library) .. "/exports/" .. fileName ..".pdf"
     p:write(storagePath)
     Printf("PDF created successfully at " .. storagePath)
+-- ============================ END PDF STUFF =============================
 
 end
 
