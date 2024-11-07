@@ -512,6 +512,8 @@ end
 local documentTitle = "GrandMA3 Cue List Export"
 local footerNotice = "GrandMA3 - CueList2PDF"
 
+
+
 local errMsgNoUSBDevice = "Please connect a removable storage device to the system."
 
 local xPosType = 20
@@ -559,14 +561,49 @@ local function Main(displayHandle,argument)
 
     end
 
+    --SelectedSequence() creates a handle to the selected sequence.
+    local selectedSequence = SelectedSequence()
+    if selectedSequence == nil then
+        ErrPrintf("The selected sequence could not be found.")
+        return
+    else 
+        Printf("You have selected Sequence " .. selectedSequence.Name)
+    end
+
+-- ==================== GET CUE DATA ===================================
+    -- Iterate through cues
+    local cues = selectedSequence:Children()
+    Printf("Sequence " .. selectedSequence.Name .. " contains " .. #cues .. " cues.")
+
+    for i, cue in ipairs(cues) do
+	    if cue.No ~= nil then
+	        Printf(" at index " .. i .. " Cue number " .. cue.No .. " is called " .. cue.Name)
+            if #cue:Children() > 1 then
+                Printf("      This cue has multiple parts:")
+                local parts = cue:Children()
+                for j, part in ipairs(parts) do
+                    Printf("      " .. part.Part .. " " .. part.Name  .. " inFade: " .. toSeconds(part.CueInFade))
+                end
+            else 
+                Printf("inFade: " .. toSeconds(cue:Children()[1].CueInFade))
+                --exportData[i] = makeLine(cue)
+            end 
+
+	    end
+        if cue.Name == "OffCue" then
+             Printf(cue.Name .. " is the offcue")
+        end
+    end
+
+    --============================= START PDF STUFF ===========================
+    --Export data
+    local exportPath = GetPath(Enums.PathType.Library) .. "/datapools/plugins/cueList2pdf/" .. selectedSequence.Name .. "cueListExport.pdf"
+    local exportData = {}
     --local fileName = settings.inputs["PDF title"]
     --local author = settings.inputs["Author"]
-    local fileName = "cueListExport"
+    local fileName = "cueListExport" .. selectedSequence.Name
     local author = "P"
-
---============================= START PDF STUFF ===========================
     -- Create a new PDF document
-    Printf("Let's pdf that shit")
     local p = PDF.new()
 
     local helv = p:new_font{ name = "Helvetica"}
@@ -605,45 +642,6 @@ local function Main(displayHandle,argument)
     page:restore()
    
 -- ============================ END PDF STUFF =============================
-
-    --SelectedSequence() creates a handle to the selected sequence.
-    local selectedSequence = SelectedSequence()
-    if selectedSequence == nil then
-        ErrPrintf("The selected sequence could not be found.")
-        return
-    else 
-      Printf("Hello I have been reloaded. You have selected Sequence " .. selectedSequence.Name)
-    end
-    -- 
-
-       --Export data
-    local exportPath = GetPath(Enums.PathType.Library) .. "/datapools/plugins/cueList2pdf/" .. selectedSequence.Name .. "cueListExport.pdf"
-    local exportData = {}
-
-
-    -- Iterate through cues
-    local cues = selectedSequence:Children()
-    Printf("Sequence " .. selectedSequence.Name .. " contains " .. #cues .. " cues.")
-
-    for i, cue in ipairs(cues) do
-	    if cue.No ~= nil then
-	        Printf(" at index " .. i .. " Cue number " .. cue.No .. " is called " .. cue.Name)
-            if #cue:Children() > 1 then
-                Printf("      This cue has multiple parts:")
-                local parts = cue:Children()
-                for j, part in ipairs(parts) do
-                    Printf("      " .. part.Part .. " " .. part.Name  .. " inFade: " .. toSeconds(part.CueInFade))
-                end
-            else 
-                Printf("inFade: " .. toSeconds(cue:Children()[1].CueInFade))
-                exportData[i] = makeLine(cue)
-            end 
-
-	    end
-        if cue.Name == "OffCue" then
-             Printf(cue.Name .. " is the offcue")
-        end
-    end
 
     for k,v in pairs(pages) do
 		-- Add pagination to the page
