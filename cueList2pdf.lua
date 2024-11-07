@@ -572,15 +572,37 @@ local function Main(displayHandle,argument)
     local helv = p:new_font{ name = "Helvetica"}
     local bold = p:new_font{ name = "Helvetica", weight = "-Bold"}
 
-    -- -- Table for holding all pages which will be created during the printing process
-    -- local pages = {}
+	-- Table for holding all pages which will be created during the printing process
+	local pages = {}
 
-    -- -- Create the initial page
-    -- local page = p:new_page()
-    -- table.insert(pages, page)
+	-- Create the initial page
+	local page = p:new_page()
+	table.insert(pages, page)
 
-    -- page:save()
+	page:save()
 
+    local textSize = 10
+	local headerSize = 22
+
+    local currentY = 570
+	local currentPage = page
+	local pageCount = 1
+	local nextLine = 30
+
+	local lastUniverse = 0
+	local lastStage = nil
+
+	local maxFixtureTypeNameLength = 45
+	local maxFixtureNameLength = 32
+	local maxStageNameLength = 80
+
+    page:begin_text()
+	page:set_font(bold, headerSize)
+	page:set_text_pos(20, 725)
+	page:show("title")
+	page:end_text()
+
+    page:restore()
    
 -- ============================ END PDF STUFF =============================
 
@@ -623,6 +645,24 @@ local function Main(displayHandle,argument)
         end
     end
 
+    for k,v in pairs(pages) do
+		-- Add pagination to the page
+  		v:begin_text()
+		v:set_font(helv, textSize)
+		v:set_text_pos(520, 10)
+		v:show("Page " ..k.. "/" ..pageCount)
+		v:end_text()
+
+		-- Add the footer notice to the page
+		v:begin_text()
+		v:set_font(helv, textSize)
+		v:set_text_pos(20, 10)
+		v:show(footerNotice)
+		v:end_text()
+
+		-- Add the page to the document
+		v:add()
+	end
 
     local storagePath = GetPath(Enums.PathType.Library) .. "/exports/" .. fileName ..".pdf"
     p:write(storagePath)
