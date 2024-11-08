@@ -511,16 +511,13 @@ end
 -- ====================== START OF PLUGIN
 local documentTitle = "GrandMA3 Cue List Export"
 local footerNotice = "GrandMA3 - CueList2PDF"
-
-
-
 local errMsgNoUSBDevice = "Please connect a removable storage device to the system."
 
 local xPosNumber = 20
 local xPosPart = 60
 local xPosName = 100
-local xPosInfo = 300
-local xPosFadeIn = 540
+local xPosInfo = 200
+local xPosFade = 540
 
 local yPosHeaderRow = 600
 local yPosStageName = 770
@@ -534,10 +531,10 @@ local function Main(displayHandle, argument)
 
 	--Utils
 	function toSeconds(fadeTime)
-		local value = "0"
+		local value = "-"
 		if fadeTime > 0 then
 			value = tostring(fadeTime / (256 ^ 3))
-		elseif fadeTime == 0 then
+		elseif fadeTime == 0 or fadeTime == nil then
 			value = "0"
 		end
 		return value
@@ -622,13 +619,9 @@ local function Main(displayHandle, argument)
 
 	--============================= START PDF STUFF ===========================
 	--Export data
-	local exportPath = GetPath(Enums.PathType.Library) ..
-	"/datapools/plugins/cueList2pdf/" .. selectedSequence.Name .. "cueListExport.pdf"
-	local exportData = {}
 	local fileName = settings.inputs["PDF title"]
 	local author = settings.inputs["Author"]
-	--local fileName = "cueListExport" .. selectedSequence.Name
-	--local author = "P"
+
 	-- Create a new PDF document
 	local p = PDF.new()
 
@@ -647,78 +640,59 @@ local function Main(displayHandle, argument)
 	local textSize = 10
 	local headerSize = 22
 
+	function printElement(page, data, posX, posY, font, fontSize)
+		if font ~= nil and fontSize ~= nil then
+			page:begin_text()
+			page:set_font(font, fontSize)
+			page:set_text_pos(posX, posY)
+			page:show(data)
+			page:end_text()
+		else --default to basic font and size
+			page:begin_text()
+			page:set_font(helv, textSize)
+			page:set_text_pos(posX, posY)
+			page:show(data)
+			page:end_text()
+		end
+	end
+
+	function printSeparationLine(page, yPos, color)
+		local r = 0
+		local g = 0
+		local b = 0
+		if color ~= nil then
+			r = color[1]
+			g = color[2]
+			b = color[3]
+		end
+		page:setrgbcolor("stroke", r, g, b)
+		page:moveto(20, yPos - 5)
+		page:lineto(590, yPos - 5)
+		page:stroke()
+	end
+
 	function printDocumentHeader(page)
-		page:begin_text()
-		page:set_font(bold, headerSize)
-		page:set_text_pos(20, 725)
-		page:show(documentTitle)
-		page:end_text()
-
-		page:begin_text()
-		page:set_font(helv, textSize)
-		page:set_text_pos(20, 685)
-		page:show("Software version: " .. softwareVersion)
-		page:end_text()
-
-		page:begin_text()
-		page:set_font(helv, textSize)
-		page:set_text_pos(20, 670)
-		page:show("Showfile: " .. Root().manetsocket.showfile)
-		page:end_text()
-
-
-		page:begin_text()
-		page:set_font(helv, textSize)
-		page:set_text_pos(20, 655)
-		page:show("Sequence: " .. selectedSequence.Name)
-		page:end_text()
-
-		page:begin_text()
-		page:set_font(helv, textSize)
-		page:set_text_pos(20, 640)
-		page:show("Author: " .. author)
-		page:end_text()
-
+		printElement(page, documentTitle, 20, 725, bold, headerSize)
+		local versionString = "Software version: " .. softwareVersion
+		printElement(page, versionString, 20, 685)
+		local showfileString = "Showfile: " .. Root().manetsocket.showfile
+		printElement(page, showfileString, 20, 670)
+		local sequenceString = "Sequence: " .. selectedSequence.Name
+		printElement(page, sequenceString, 20, 655)
+		local authorString = "Author: " .. author
+		printElement(page, authorString, 20, 640)
 		page:restore()
 	end
 
 	printDocumentHeader(page)
 
 	function printTableHeader(page, yPos)
-		page:begin_text()
-		page:set_font(bold, textSize)
-		page:set_text_pos(xPosNumber, yPos)
-		page:show("#")
-		page:end_text()
-
-		page:begin_text()
-		page:set_font(bold, textSize)
-		page:set_text_pos(xPosPart, yPos)
-		page:show("Part")
-		page:end_text()
-
-		page:begin_text()
-		page:set_font(bold, textSize)
-		page:set_text_pos(xPosName, yPos)
-		page:show("Name")
-		page:end_text()
-
-		page:begin_text()
-		page:set_font(bold, textSize)
-		page:set_text_pos(xPosInfo, yPos)
-		page:show("Info")
-		page:end_text()
-
-		page:begin_text()
-		page:set_font(bold, textSize)
-		page:set_text_pos(xPosFadeIn, yPos)
-		page:show("Fade In")
-		page:end_text()
-
-		page:setrgbcolor("stroke", 0, 0, 0)
-		page:moveto(20, yPos - 10)
-		page:lineto(590, yPos - 10)
-		page:stroke()
+		printElement(page, "#", xPosNumber, yPos)
+		printElement(page, "Part", xPosPart, yPos)
+		printElement(page, "Name", xPosName, yPos)
+		printElement(page, "Info", xPosInfo, yPos)
+		printElement(page, "Fade", xPosFade, yPos)
+		printSeparationLine(page, yPos)
 	end
 
 	printTableHeader(page, yPosHeaderRow)
@@ -732,11 +706,11 @@ local function Main(displayHandle, argument)
 		return returnTable
 	end
 
-	function emptyIfNil(cue, attributeName)
-		if cue[attributeName] == nil then
-			return ""
+	function emptyIfNil(obj)
+		if obj == nil then
+			return "-"
 		else
-			return cue[attributeName]
+			return obj
 		end
 	end
 
@@ -751,14 +725,19 @@ local function Main(displayHandle, argument)
 				local cueObj = {}
 				cueObj.number = cue.No / 1000
 				cueObj.name = cue.Name
-				cue.note = emptyIfNil(cue, "Note")
-				cueObj.trigType = emptyIfNil(cue, "TrigType")
-				cueObj.trigTime = emptyIfNil(cue, "TrigTime")
+				cueObj.note = emptyIfNil(cue.Note)
+				cueObj.trigType = emptyIfNil(cue.TrigType)
+				cueObj.trigTime = emptyIfNil(cue.TrigTime)
 				cueObj.parts = {}
 				for i, part in ipairs(cue:Children()) do
 					local partObj = {}
-					partObj.partNumber = emptyIfNil(part, "Part")
+					partObj.name = emptyIfNil(part.Name)
+					partObj.note = emptyIfNil(part.Note)
+					partObj.number = emptyIfNil(part.Part)
 					partObj.inFade = toSeconds(part.CueInFade)
+					partObj.outFade = toSeconds(part.CueOutFade)
+					--partObj.inDelay = toSeconds(part.CueInDelay)
+					--partObj.outDelay = toSeconds(part.CueOutDelay)
 					table.insert(cueObj.parts, partObj)
 				end
 				table.insert(cleanedList, cueObj)
@@ -770,7 +749,7 @@ local function Main(displayHandle, argument)
 	local currentY = 570
 	local currentPage = page
 	local pageCount = 1
-	local nextLine = 30
+	local nextLine = 20
 
 	local lastUniverse = 0
 	local lastStage = nil
@@ -779,27 +758,8 @@ local function Main(displayHandle, argument)
 	local maxFixtureNameLength = 32
 	local maxStageNameLength = 80
 
-	function printCueRow(page, cue, posY)
-		page:begin_text()
-		page:set_font(helv, textSize)
-		page:set_text_pos(xPosNumber, posY)
-		page:show(cue.number)
-		page:end_text()
-
-		page:begin_text()
-		page:set_font(helv, textSize)
-		page:set_text_pos(xPosName, posY)
-		page:show(cue.name)
-		page:end_text()
-
-		-- bottom of page stuff
-		page:setrgbcolor("stroke", 0.8, 0.8, 0.8)
-		page:moveto(20, posY - 10)
-		page:lineto(590, posY - 10)
-		page:stroke()
-
+	function newpageIfNeeded()
 		currentY = currentY - nextLine
-
 		if currentY < 50 then
 			local newPage = p:new_page()
 			pageCount = pageCount + 1
@@ -808,6 +768,33 @@ local function Main(displayHandle, argument)
 			printTableHeader(currentPage, 750)
 			currentY = 720
 		end
+	end
+
+	function printCueRow(page, cue)
+		printElement(page, cue.number, xPosNumber, currentY)
+		printElement(page, cue.name, xPosName, currentY)
+		printElement(page, cue.note, xPosInfo, currentY)
+		local isMultipart = #cue.parts > 1
+		local part1 = cue.parts[1]
+		local fadeString = part1.inFade .. "/" .. part1.outFade
+		printElement(page, fadeString, xPosFade, currentY)
+		-- if multipart add lines
+		if isMultipart then
+			for i = 2, #cue.parts do
+				local part = cue.parts[i]
+				newpageIfNeeded()
+				printElement(page, part.number, xPosPart, currentY)
+				printElement(page, part.name, xPosName, currentY)
+				printElement(page, part.note, xPosInfo, currentY)
+				local fadeString = part.inFade .. "/" .. part.outFade
+				printElement(page, fadeString, xPosFade, currentY)
+			end
+		end
+
+		-- bottom of page stuff
+		local color = { 0.8, 0.8, 0.8 }
+		printSeparationLine(page, currentY, color)
+		newpageIfNeeded()
 	end
 
 	local cuesRaw = getCuesForSequence(selectedSequence)
