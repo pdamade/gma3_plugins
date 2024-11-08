@@ -517,7 +517,7 @@ local xPosNumber = 20
 local xPosPart = 60
 local xPosName = 100
 local xPosInfo = 200
-local xPosFade = 540
+local xPosFade = 510
 
 local yPosHeaderRow = 600
 local yPosStageName = 770
@@ -535,7 +535,7 @@ local function Main(displayHandle, argument)
 		if fadeTime > 0 then
 			value = tostring(fadeTime / (256 ^ 3))
 		elseif fadeTime == 0 or fadeTime == nil then
-			value = "0"
+			value = "-"
 		end
 		return value
 	end
@@ -671,6 +671,31 @@ local function Main(displayHandle, argument)
 		page:stroke()
 	end
 
+	function tagRow(page, colorString, yPos)
+		page:save()
+		local color = {}
+		color.r = 0
+		color.g = 0
+		color.b = 0
+		if colorString == "blue" then
+			color.b = 1
+		elseif colorString == "red" then
+			color.r = 1
+		elseif colorString == "green" then
+			color.g = 1
+		end
+		page:setrgbcolor("fill", color.r, color.g, color.b)
+		page:newpath()
+		page:moveto(10, yPos + 13)
+		page:lineto(15, yPos + 13)
+		page:lineto(15, yPos - 7)
+		page:lineto(10, yPos - 7)
+		page:lineto(10, yPos + 13)
+		page:closepath()
+		page:fill()
+		page:restore()
+	end
+
 	function printDocumentHeader(page)
 		printElement(page, documentTitle, 20, 725, bold, headerSize)
 		local versionString = "Software version: " .. softwareVersion
@@ -692,6 +717,7 @@ local function Main(displayHandle, argument)
 		printElement(page, "Name", xPosName, yPos)
 		printElement(page, "Info", xPosInfo, yPos)
 		printElement(page, "Fade", xPosFade, yPos)
+		printElement(page, "Trig", xPosFade + 40, yPos)
 		printSeparationLine(page, yPos)
 	end
 
@@ -727,7 +753,7 @@ local function Main(displayHandle, argument)
 				cueObj.name = cue.Name
 				cueObj.note = emptyIfNil(cue.Note)
 				cueObj.trigType = emptyIfNil(cue.TrigType)
-				cueObj.trigTime = emptyIfNil(cue.TrigTime)
+				cueObj.trigTime = toSeconds(cue.TrigTime)
 				cueObj.parts = {}
 				for i, part in ipairs(cue:Children()) do
 					local partObj = {}
@@ -736,8 +762,8 @@ local function Main(displayHandle, argument)
 					partObj.number = emptyIfNil(part.Part)
 					partObj.inFade = toSeconds(part.CueInFade)
 					partObj.outFade = toSeconds(part.CueOutFade)
-					--partObj.inDelay = toSeconds(part.CueInDelay)
-					--partObj.outDelay = toSeconds(part.CueOutDelay)
+					partObj.inDelay = toSeconds(part.CueInDelay)
+					partObj.outDelay = toSeconds(part.CueOutDelay)
 					table.insert(cueObj.parts, partObj)
 				end
 				table.insert(cleanedList, cueObj)
@@ -775,11 +801,14 @@ local function Main(displayHandle, argument)
 		printElement(page, cue.name, xPosName, currentY)
 		printElement(page, cue.note, xPosInfo, currentY)
 		local isMultipart = #cue.parts > 1
+		local isAutoTrig = cue.trigType ~= 0
 		local part1 = cue.parts[1]
 		local fadeString = part1.inFade .. "/" .. part1.outFade
 		printElement(page, fadeString, xPosFade, currentY)
+		printElement(page, cue.trigTime, xPosFade + 40, currentY)
 		-- if multipart add lines
 		if isMultipart then
+			tagRow(page, "blue", currentY)
 			for i = 2, #cue.parts do
 				local part = cue.parts[i]
 				newpageIfNeeded()
@@ -788,7 +817,12 @@ local function Main(displayHandle, argument)
 				printElement(page, part.note, xPosInfo, currentY)
 				local fadeString = part.inFade .. "/" .. part.outFade
 				printElement(page, fadeString, xPosFade, currentY)
+				tagRow(page, "blue", currentY)
 			end
+		elseif isAutoTrig then
+			tagRow(page, "red", currentY)
+		else
+			tagRow(page, "green", currentY)
 		end
 
 		-- bottom of page stuff
