@@ -516,11 +516,11 @@ local footerNotice = "GrandMA3 - CueList2PDF"
 
 local errMsgNoUSBDevice = "Please connect a removable storage device to the system."
 
-local xPosType = 20
-local xPosID = 80
-local xPosFixtureType = 140
-local xPosFixtureName = 370
-local xPosPatch = 540
+local xPosNumber = 20
+local xPosPart = 60
+local xPosName = 100
+local xPosInfo = 300
+local xPosFadeIn = 540
 
 local yPosHeaderRow = 600
 local yPosStageName = 770
@@ -577,10 +577,11 @@ local function Main(displayHandle,argument)
     local fileNameSuggestion = os.date("cue_list_export_%d-%m-%Y-%H-%M_" .. selectedSequence.Name)
 
     -- ================ WELCOME POPUP =====================
+   
     local settings =
 	MessageBox(
 	{
-		title = "Patch 2 PDF",
+		title = "Export cue list to PDF",
 		message = "Please adjust these settings as needed.",
 		display = displayHandle.index,
 		inputs = {
@@ -590,6 +591,12 @@ local function Main(displayHandle,argument)
         commands = {{value = 1, name = "Export"}, {value = 2, name = "Cancel"}},
     }
     )
+
+    -- Cancel
+    if settings.result == 2 then
+		Printf("Export aborted by user.")
+		return
+	end
 
 -- ==================== GET CUE DATA ===================================
     -- Iterate through cues
@@ -682,31 +689,31 @@ local function Main(displayHandle,argument)
     function printTableHeader(page, yPos)
 		page:begin_text()
 		page:set_font(bold, textSize)
-		page:set_text_pos(xPosType, yPos)
-		page:show("Cue No.")
+		page:set_text_pos(xPosNumber, yPos)
+		page:show("#")
 		page:end_text()
 
 		page:begin_text()
 		page:set_font(bold, textSize)
-		page:set_text_pos(xPosID, yPos)
+		page:set_text_pos(xPosPart, yPos)
 		page:show("Part")
 		page:end_text()
 
 		page:begin_text()
 		page:set_font(bold, textSize)
-		page:set_text_pos(xPosFixtureType, yPos)
+		page:set_text_pos(xPosName, yPos)
 		page:show("Name")
 		page:end_text()
 
 		page:begin_text()
 		page:set_font(bold, textSize)
-		page:set_text_pos(xPosFixtureName, yPos)
+		page:set_text_pos(xPosInfo, yPos)
 		page:show("Info")
 		page:end_text()
 
 		page:begin_text()
 		page:set_font(bold, textSize)
-		page:set_text_pos(xPosPatch, yPos)
+		page:set_text_pos(xPosFadeIn, yPos)
 		page:show("Fade In")
 		page:end_text()
 
@@ -717,6 +724,50 @@ local function Main(displayHandle,argument)
 	end
 
 	printTableHeader(page, yPosHeaderRow)
+
+    function getCuesForSequence(sequence)
+        local returnTable = {}
+        local allCues = selectedSequence:Children()
+        for _, cue in ipairs(allCues) do
+            table.insert(returnTable, cue)
+        end
+        return returnTable
+    end
+
+    function emptyIfNil(cue, attributeName)
+        if cue[attributeName] == nil then
+            return ""
+        else return cue[attributeName]
+        end
+    end
+
+    function cleanupCues(rawList)
+        local cleanedList = {}
+        for i, cue in ipairs(rawList) do
+            if cue.Name == "OffCue" then
+                -- skip
+            elseif cue.Name == "CueZero" then
+                -- skip
+            else 
+                local cueObj = {}
+                cueObj.number = cue.No/1000
+                cueObj.name = cue.Name
+                --[[ cueObj.name = cue.Name
+                cue.note = emptyIfNil(cue, "Note")
+                cueObj.trigType = emptyIfNil(cue, "TrigType")
+                cueObj.trigTime = emptyIfNil(cue, "TrigTime")
+                cueObj.parts = {} ]]
+                --[[ for i, part in ipairs(cue:Children()) do
+                    local partObj = {}
+                    partObj.partNumber = emptyIfNil(part, "Part")
+                    partObj.inFade = toSeconds(part.CueInFade)
+                    table.insert(cueObj.parts, partObj)
+                end ]]
+                table.insert(cleanedList, cueObj)
+            end
+        end
+        return cleanedList
+    end
 
     local currentY = 570
 	local currentPage = page
@@ -729,6 +780,50 @@ local function Main(displayHandle,argument)
 	local maxFixtureTypeNameLength = 45
 	local maxFixtureNameLength = 32
 	local maxStageNameLength = 80
+
+    function printCueRow(page, cue, posY)
+        page:begin_text()
+        page:set_font(helv, textSize)
+        page:set_text_pos(xPosNumber, posY)
+        page:show(cue.number)
+        page:end_text()
+
+        page:begin_text()
+        page:set_font(helv, textSize)
+        page:set_text_pos(xPosName, posY)
+        page:show(cue.name)
+        page:end_text()
+
+        -- bottom of page stuff
+        page:setrgbcolor("stroke", 0.8, 0.8, 0.8)
+		page:moveto(20, posY-10)
+		page:lineto(590, posY-10)
+		page:stroke()
+
+		currentY = currentY - nextLine
+
+		if currentY < 50 then
+			local newPage = p:new_page()
+			pageCount = pageCount + 1
+			table.insert(pages, newPage)
+			currentPage = newPage
+			printTableHeader(currentPage, 750)
+			currentY = 720
+		end
+    end
+
+
+
+    local cuesRaw = getCuesForSequence(selectedSequence)
+    local cues = cleanupCues(cuesRaw)
+
+    Printf("Clean list contains " .. #cues .. " cues")
+    Printf("The first cue has number " .. cues[1].number .. " and name " .. cues[1].name)
+
+    for i, cue in ipairs(cues) do
+        printCueRow(currentPage, cue, currentY)
+    end
+
 
     for k,v in pairs(pages) do
 		-- Add pagination to the page
