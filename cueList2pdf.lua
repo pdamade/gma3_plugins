@@ -509,7 +509,6 @@ end
 
 
 -- ====================== START OF PLUGIN
-local documentTitle = "GrandMA3 Cue List Export"
 local footerNotice = "GrandMA3 - CueList2PDF"
 local errMsgNoUSBDevice = "Please connect a removable storage device to the system."
 
@@ -528,6 +527,22 @@ local function Main(displayHandle, argument)
 
 	local datetime = os.date("Created at: %d.%m.%Y %H:%M")
 	local softwareVersion = Version()
+	local host = HostType()
+	local allSequences = DataPool().Sequences
+	local allSequencesNotEmpty = {}
+
+	for i = 1, #allSequences do
+		local seq = DataPool().Sequences[i]
+		local isValid = IsObjectValid(seq)
+		if isValid then
+			table.insert(allSequencesNotEmpty, seq)
+		end
+	end
+	Printf("I found " .. #allSequences .. " sequences, with " .. #allSequencesNotEmpty .. " not empty")
+	for i, seq in ipairs(allSequencesNotEmpty) do
+		Printf(seq.Name)
+	end
+
 
 	--Utils
 	function toSeconds(fadeTime)
@@ -560,19 +575,17 @@ local function Main(displayHandle, argument)
 		end
 	end
 
-	--SelectedSequence() creates a handle to the selected sequence.
-	local selectedSequence = SelectedSequence()
-	if selectedSequence == nil then
-		ErrPrintf("The selected sequence could not be found.")
-		return
-	else
-		Printf("You have selected Sequence " .. selectedSequence.Name)
-	end
-
-	local fileNameSuggestion = os.date("cue_list_export_%d-%m-%Y-%H-%M_" .. selectedSequence.Name)
-
 	-- ================ WELCOME POPUP =====================
-
+	local showFileName = Root().manetsocket.showfile
+	local fileNameSuggestion = os.date("%d-%m-%Y-%H-%M_" .. showFileName)
+	local documentTitleSuggestion = showFileName .. " - Cue list"
+	local seqSelector = {}
+	for i, seq in ipairs(allSequencesNotEmpty) do
+		seqSelector[seq.Name] = i
+	end
+	local selectors = {
+		{ name = "Sequence", values = seqSelector, type = 1 },
+	}
 	local settings =
 		MessageBox(
 			{
@@ -580,9 +593,11 @@ local function Main(displayHandle, argument)
 				message = "Please adjust these settings as needed.",
 				display = displayHandle.index,
 				inputs = {
-					{ value = fileNameSuggestion, name = "PDF title" },
-					{ value = CurrentUser().name, name = "Author" } }
+					{ value = documentTitleSuggestion, name = "Document Title" },
+					{ value = fileNameSuggestion,      name = "File name" },
+					{ value = CurrentUser().name,      name = "Author" } }
 				,
+				selectors = selectors,
 				commands = { { value = 1, name = "Export" }, { value = 2, name = "Cancel" } },
 			}
 		)
@@ -592,6 +607,22 @@ local function Main(displayHandle, argument)
 		Printf("Export aborted by user.")
 		return
 	end
+
+	local selectedSequence
+	for k, v in pairs(settings.selectors) do
+		if k == "Sequence" then
+			selectedSequence = allSequencesNotEmpty[v]
+		end
+	end
+
+	if selectedSequence == nil then
+		ErrPrintf("The selected sequence could not be found.")
+		return
+	else
+		Printf("You have selected Sequence " .. selectedSequence.Name)
+	end
+
+
 
 	-- ==================== GET CUE DATA ===================================
 	-- Iterate through cues
@@ -619,7 +650,8 @@ local function Main(displayHandle, argument)
 
 	--============================= START PDF STUFF ===========================
 	--Export data
-	local fileName = settings.inputs["PDF title"]
+	local documentTitle = settings.inputs["Document Title"]
+	local fileName = settings.inputs["File name"]
 	local author = settings.inputs["Author"]
 
 	-- Create a new PDF document
@@ -698,7 +730,7 @@ local function Main(displayHandle, argument)
 
 	function printDocumentHeader(page)
 		printElement(page, documentTitle, 20, 725, bold, headerSize)
-		local versionString = "Software version: " .. softwareVersion
+		local versionString = "Software version: " .. softwareVersion .. ", Host: " .. host
 		printElement(page, versionString, 20, 685)
 		local showfileString = "Showfile: " .. Root().manetsocket.showfile
 		printElement(page, showfileString, 20, 670)
@@ -806,8 +838,7 @@ local function Main(displayHandle, argument)
 		local fadeString = part1.inFade .. "/" .. part1.outFade
 		printElement(page, fadeString, xPosFade, currentY)
 		printElement(page, cue.trigTime, xPosFade + 40, currentY)
-		-- if multipart add lines
-		if isMultipart then
+		if isMultipart then -- multipart cues
 			tagRow(page, "blue", currentY)
 			for i = 2, #cue.parts do
 				local part = cue.parts[i]
@@ -819,13 +850,12 @@ local function Main(displayHandle, argument)
 				printElement(page, fadeString, xPosFade, currentY)
 				tagRow(page, "blue", currentY)
 			end
-		elseif isAutoTrig then
+		elseif isAutoTrig then -- follow or time cues
 			tagRow(page, "red", currentY)
-		else
+		else             -- regular cues
 			tagRow(page, "green", currentY)
 		end
 
-		-- bottom of page stuff
 		local color = { 0.8, 0.8, 0.8 }
 		printSeparationLine(page, currentY, color)
 		newpageIfNeeded()
