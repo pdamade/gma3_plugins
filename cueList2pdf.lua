@@ -516,7 +516,8 @@ local xPosNumber = 20
 local xPosPart = 60
 local xPosName = 100
 local xPosInfo = 200
-local xPosFade = 510
+local xPosFade = 530
+local xPosTrig = 570
 
 local yPosHeaderRow = 600
 local yPosStageName = 770
@@ -795,7 +796,7 @@ local function Main(displayHandle, argument)
 		printElement(page, "Name", xPosName, yPos)
 		printElement(page, "Info", xPosInfo, yPos)
 		printElement(page, "Fade", xPosFade, yPos)
-		printElement(page, "Trig", xPosFade + 40, yPos)
+		printElement(page, "Trig", xPosTrig, yPos)
 		printSeparationLine(page, yPos)
 	end
 
@@ -883,9 +884,21 @@ local function Main(displayHandle, argument)
 		local part1 = cue.parts[1]
 		local fadeString = part1.inFade .. "/" .. part1.outFade
 		printElement(page, fadeString, xPosFade, currentY)
-		printElement(page, cue.trigTime, xPosFade + 40, currentY)
+		if isAutoTrig then -- follow or time cues
+			tagRow(page, "red", currentY)
+			local trigType
+			if cue.trigType == 2 then -- follow
+				trigType = "F"
+			elseif cue.trigType == 1 then -- time
+				trigType = "T"
+			end
+			local trigString = trigType .. " " .. cue.trigTime
+			printElement(page, trigString, xPosTrig, currentY)
+		else -- go cues
+			tagRow(page, "green", currentY)
+			printElement(page, "Go", xPosTrig, currentY)
+		end
 		if isMultipart then -- multipart cues
-			tagRow(page, "blue", currentY)
 			for i = 2, #cue.parts do
 				local part = cue.parts[i]
 				newpageIfNeeded()
@@ -896,10 +909,6 @@ local function Main(displayHandle, argument)
 				printElement(page, fadeString, xPosFade, currentY)
 				tagRow(page, "blue", currentY)
 			end
-		elseif isAutoTrig then -- follow or time cues
-			tagRow(page, "red", currentY)
-		else             -- regular cues
-			tagRow(page, "green", currentY)
 		end
 
 		local color = { 0.8, 0.8, 0.8 }
