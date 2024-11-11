@@ -545,7 +545,7 @@ local function Main(displayHandle, argument)
 
 
 	--Utils
-	function toSeconds(fadeTime)
+	local function toSeconds(fadeTime)
 		local value = "-"
 		if fadeTime > 0 then
 			value = tostring(fadeTime / (256 ^ 3))
@@ -555,8 +555,8 @@ local function Main(displayHandle, argument)
 		return value
 	end
 
-	function makeLine(cue)
-		part = cue:Children()[1]
+	local function makeLine(cue)
+		local part = cue:Children()[1]
 		local cueName = "Cue " .. cue.No
 		if cue.Name ~= nil then
 			cueName = cue.Name
@@ -583,9 +583,50 @@ local function Main(displayHandle, argument)
 	for i, seq in ipairs(allSequencesNotEmpty) do
 		seqSelector[seq.Name] = i
 	end
+
 	local selectors = {
 		{ name = "Sequence", values = seqSelector, type = 1 },
 	}
+
+	-- Helper for assigning the drives in the list an ID
+	local idCounter = 0
+
+	-- Get currently connected storage devices
+	local drives = Root().Temp.DriveCollect
+	local usbConnected = false
+
+	for _, drive in ipairs(drives) do
+		idCounter = idCounter + 1
+		if drive.drivetype ~= "OldVersion" and drive.drivetype == "Removeable" then
+			-- At least one removeable storage device was found
+			usbConnected = true
+			table.insert(selectors, { name = "Drive", values = {}, type = 1 })
+			selectors[2].values[drive.name] = idCounter
+			selectors[2].selectedValue = idCounter
+		end
+	end
+
+	-- If no removeable storage device was found, the plugin will warn
+	local res = {}
+	if usbConnected == false then
+		res =
+			MessageBox(
+				{
+					title = "Warning",
+					message = "No USB drive detected, file will be saved to internal drive.",
+					display = displayHandle.index,
+					commands = { { value = 1, name = "Ok" }, { value = 2, name = "Cancel" } },
+				}
+			)
+	else
+		res.result = 1
+	end
+
+	if res.result == 2 then
+		Printf("Export aborted by user.")
+		return
+	end
+
 	local settings =
 		MessageBox(
 			{
@@ -609,9 +650,14 @@ local function Main(displayHandle, argument)
 	end
 
 	local selectedSequence
+	local drivePath = ""
+
 	for k, v in pairs(settings.selectors) do
 		if k == "Sequence" then
 			selectedSequence = allSequencesNotEmpty[v]
+		end
+		if k == "Drive" then
+			drivePath = drives[v].path
 		end
 	end
 
@@ -688,7 +734,7 @@ local function Main(displayHandle, argument)
 		end
 	end
 
-	function printSeparationLine(page, yPos, color)
+	local function printSeparationLine(page, yPos, color)
 		local r = 0
 		local g = 0
 		local b = 0
@@ -703,7 +749,7 @@ local function Main(displayHandle, argument)
 		page:stroke()
 	end
 
-	function tagRow(page, colorString, yPos)
+	local function tagRow(page, colorString, yPos)
 		page:save()
 		local color = {}
 		color.r = 0
@@ -728,7 +774,7 @@ local function Main(displayHandle, argument)
 		page:restore()
 	end
 
-	function printDocumentHeader(page)
+	local function printDocumentHeader(page)
 		printElement(page, documentTitle, 20, 725, bold, headerSize)
 		local versionString = "Software version: " .. softwareVersion .. ", Host: " .. host
 		printElement(page, versionString, 20, 685)
@@ -816,7 +862,7 @@ local function Main(displayHandle, argument)
 	local maxFixtureNameLength = 32
 	local maxStageNameLength = 80
 
-	function newpageIfNeeded()
+	local function newpageIfNeeded()
 		currentY = currentY - nextLine
 		if currentY < 50 then
 			local newPage = p:new_page()
@@ -828,7 +874,7 @@ local function Main(displayHandle, argument)
 		end
 	end
 
-	function printCueRow(page, cue)
+	local function printCueRow(page, cue)
 		printElement(page, cue.number, xPosNumber, currentY)
 		printElement(page, cue.name, xPosName, currentY)
 		printElement(page, cue.note, xPosInfo, currentY)
@@ -891,7 +937,14 @@ local function Main(displayHandle, argument)
 		v:add()
 	end
 
-	local storagePath = GetPath(Enums.PathType.Library) .. "/exports/" .. fileName .. ".pdf"
+	local internalStoragePath = GetPath(Enums.PathType.Library) .. "/exports/" .. fileName .. ".pdf"
+	local externalStoragePath = drivePath .. "/" .. fileName .. ".pdf"
+	local storagePath
+	if drivePath ~= "" then
+		storagePath = externalStoragePath
+	else
+		storagePath = internalStoragePath
+	end
 	p:write(storagePath)
 	Printf("PDF created successfully at " .. storagePath)
 	-- ============================ END PDF STUFF =============================
