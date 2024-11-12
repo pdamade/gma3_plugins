@@ -937,7 +937,7 @@ local function Main(displayHandle, argument)
 		printElement(page, fadeString, xPosFade, currentY)
 		if isAutoTrig then -- follow or time cues
 			tagRow(page, "red", currentY)
-			local trigType
+			local trigType = " "
 			if cue.trigType == 2 then -- follow
 				trigType = "F"
 			elseif cue.trigType == 1 then -- time
