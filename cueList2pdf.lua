@@ -548,9 +548,12 @@ local function Main(displayHandle, argument)
 	--Utils
 	local function toSeconds(fadeTime)
 		local value = "-"
+		if fadeTime == nil then
+			return value
+		end
 		if fadeTime > 0 then
 			value = tostring(fadeTime / (256 ^ 3))
-		elseif fadeTime == 0 or fadeTime == nil then
+		elseif fadeTime == 0 then
 			value = "-"
 		end
 		return value
@@ -586,7 +589,12 @@ local function Main(displayHandle, argument)
 	end
 
 	local selectors = {
-		{ name = "Sequence", values = seqSelector, type = 1 },
+		{ name = "Sequence", values = seqSelector, selectedValue = 1, type = 0 },
+	}
+
+	local states = {
+		{ name = "Include CueZero", state = false },
+		{ name = "Include OffCue",  state = false }
 	}
 
 	-- Helper for assigning the drives in the list an ID
@@ -640,6 +648,7 @@ local function Main(displayHandle, argument)
 					{ value = CurrentUser().name,      name = "Author" } }
 				,
 				selectors = selectors,
+				states = states,
 				commands = { { value = 1, name = "Export" }, { value = 2, name = "Cancel" } },
 			}
 		)
@@ -652,6 +661,8 @@ local function Main(displayHandle, argument)
 
 	local selectedSequence
 	local drivePath = ""
+	local includeCueZero = settings.states["Include CueZero"]
+	local includeOffCue = settings.states["Include OffCue"]
 
 	for k, v in pairs(settings.selectors) do
 		if k == "Sequence" then
@@ -821,11 +832,48 @@ local function Main(displayHandle, argument)
 
 	function cleanupCues(rawList)
 		local cleanedList = {}
+		local offCue = {}
+		local cueZero = {}
 		for i, cue in ipairs(rawList) do
 			if cue.Name == "OffCue" then
-				-- skip
+				Printf("OffCue should be included? " .. tostring(includeOffCue))
+				if includeOffCue then
+					offCue.name = cue.Name
+					offCue.number = "-"
+					offCue.note = emptyIfNil(cue.Note)
+					offCue.parts = {}
+					local part1 = cue:Children()[1]
+					offCue.trigType = emptyIfNil(cue.TrigType)
+					offCue.trigTime = toSeconds(cue.TrigTime)
+					local offCuePart = {}
+					offCuePart.inFade = toSeconds(part1.CueInFade)
+					offCuePart.outFade = toSeconds(part1.CueOutFade)
+					offCuePart.inDelay = toSeconds(part1.CueInDelay)
+					offCuePart.outDelay = toSeconds(part1.CueOutDelay)
+					table.insert(offCue.parts, offCuePart)
+				else
+					--skip
+				end
 			elseif cue.Name == "CueZero" then
-				-- skip
+				Printf("CueZero should be included? " .. tostring(includeCueZero))
+				if includeCueZero then
+					cueZero.name = cue.Name
+					cueZero.number = "0"
+					cueZero.note = emptyIfNil(cue.Note)
+					cueZero.parts = {}
+					local part1 = cue:Children()[1]
+					cueZero.trigType = emptyIfNil(cue.TrigType)
+					cueZero.trigTime = toSeconds(cue.TrigTime)
+					local cueZeroPart = {}
+					cueZeroPart.inFade = toSeconds(part1.CueInFade)
+					cueZeroPart.outFade = toSeconds(part1.CueOutFade)
+					cueZeroPart.inDelay = toSeconds(part1.CueInDelay)
+					cueZeroPart.outDelay = toSeconds(part1.CueOutDelay)
+					table.insert(cueZero.parts, cueZeroPart)
+					table.insert(cleanedList, cueZero)
+				else
+					--skip
+				end
 			else
 				local cueObj = {}
 				cueObj.number = cue.No / 1000
@@ -847,6 +895,9 @@ local function Main(displayHandle, argument)
 				end
 				table.insert(cleanedList, cueObj)
 			end
+		end
+		if includeOffCue then
+			table.insert(cleanedList, offCue)
 		end
 		return cleanedList
 	end
@@ -880,7 +931,7 @@ local function Main(displayHandle, argument)
 		printElement(page, cue.name, xPosName, currentY)
 		printElement(page, cue.note, xPosInfo, currentY)
 		local isMultipart = #cue.parts > 1
-		local isAutoTrig = cue.trigType ~= 0
+		local isAutoTrig = cue.trigType ~= 0 and cue.trigType ~= "-"
 		local part1 = cue.parts[1]
 		local fadeString = part1.inFade .. "/" .. part1.outFade
 		printElement(page, fadeString, xPosFade, currentY)
