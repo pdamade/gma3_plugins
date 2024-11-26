@@ -973,7 +973,11 @@ local function Main(displayHandle, argument)
 		else
 			printElement(page, data, xPos, yPos)
 		end
-		return #splitData -- number of lines we used
+		if #splitData > 1 then
+			return #splitData
+		else
+			return 1
+		end
 	end
 
 
@@ -1012,8 +1016,8 @@ local function Main(displayHandle, argument)
 					partY)
 				local partNoteLineSize = printElementWithTextWrap(page, part.note, MAX_INFO_LENGTH, xPosInfo,
 					partY)
-				local fadeString = part.inFade .. "/" .. part.outFade
-				printElement(page, fadeString, xPosFade, partY)
+				local partFadeString = part.inFade .. "/" .. part.outFade
+				printElement(page, partFadeString, xPosFade, partY)
 				tagRow(page, "blue", partY)
 				partY = partY - nextLine * math.max(partNameLineSize, partNoteLineSize)
 				partExtraLines = partExtraLines + math.max(partNameLineSize, partNoteLineSize)
@@ -1022,9 +1026,7 @@ local function Main(displayHandle, argument)
 
 		local color = { 0.8, 0.8, 0.8 }
 		local extraLines = cueExtraLines + partExtraLines
-		if extraLines > 1 then
-			currentY = currentY - nextLine * (extraLines - #cue.parts)
-		end
+		currentY = currentY - nextLine * (extraLines - #cue.parts)
 		printSeparationLine(page, currentY, color)
 		newpageIfNeeded()
 	end
