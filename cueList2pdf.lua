@@ -507,10 +507,8 @@ PDF.new = function()
 	return pdf
 end
 
-
--- ====================== START OF PLUGIN
+-- ====================== START OF PLUGIN ======================
 local footerNotice = "GrandMA3 - CueList2PDF"
-local errMsgNoUSBDevice = "Please connect a removable storage device to the system."
 
 local xPosNumber = 20
 local xPosPart = 50
@@ -520,32 +518,23 @@ local xPosFade = 525
 local xPosTrig = 570
 
 local yPosHeaderRow = 600
-local yPosStageName = 770
 
 local MAX_NAME_LENGTH = 20
 local MAX_INFO_LENGTH = 65
 
 local function Main(displayHandle, argument)
-	require 'gma3_debug' ()
-	debuggee.print("log", "start")
-
-	local datetime = os.date("Created at: %d.%m.%Y %H:%M")
 	local softwareVersion = Version()
 	local host = HostType()
-	local allSequences = DataPool().Sequences
 	local allSequencesNotEmpty = {}
 
-	for i = 1, #allSequences do
+	for i = 1, #DataPool().Sequences do
 		local seq = DataPool().Sequences[i]
 		local isValid = IsObjectValid(seq)
 		if isValid then
 			table.insert(allSequencesNotEmpty, seq)
 		end
 	end
-	Printf("I found " .. #allSequences .. " sequences, with " .. #allSequencesNotEmpty .. " not empty")
-	for i, seq in ipairs(allSequencesNotEmpty) do
-		Printf(seq.Name)
-	end
+
 	--Utils
 	local function toSeconds(fadeTime)
 		local value = "-"
@@ -560,24 +549,29 @@ local function Main(displayHandle, argument)
 		return value
 	end
 
-	local function makeLine(cue)
-		local part = cue:Children()[1]
-		local cueName = "Cue " .. cue.No
-		if cue.Name ~= nil then
-			cueName = cue.Name
+	local function getCuesForSequence(sequence)
+		local returnTable = {}
+		local allCues = sequence:Children()
+		for _, cue in ipairs(allCues) do
+			table.insert(returnTable, cue)
 		end
-		local partNo = "0"
-		if part.Part ~= nil then
-			partNo = part.Part
+		return returnTable
+	end
+
+	local function emptyIfNil(obj)
+		if obj == nil then
+			return "-"
+		else
+			return obj
 		end
-		local inFade = "0"
-		if part.CueInFade ~= nil then
-			inFade = toSeconds(part.CueInFade)
+	end
+
+	local function splitByChunk(text, chunkSize)
+		local s = {}
+		for i = 1, #text, chunkSize do
+			s[#s + 1] = text:sub(i, i + chunkSize - 1)
 		end
-		local outFade = "0"
-		if part.CueOutFade ~= nil then
-			outFade = toSeconds(part.CueOutFade)
-		end
+		return s
 	end
 
 	-- ================ WELCOME POPUP =====================
@@ -696,32 +690,7 @@ local function Main(displayHandle, argument)
 	else
 		Printf("You have selected Sequence " .. selectedSequence.Name)
 	end
-
-
-
-	-- ==================== GET CUE DATA ===================================
-	-- Iterate through cues
-	local cues = selectedSequence:Children()
-	Printf("Sequence " .. selectedSequence.Name .. " contains " .. #cues .. " cues.")
-
-	for i, cue in ipairs(cues) do
-		if cue.No ~= nil then
-			Printf(" at index " .. i .. " Cue number " .. cue.No .. " is called " .. cue.Name)
-			if #cue:Children() > 1 then
-				Printf("      This cue has multiple parts:")
-				local parts = cue:Children()
-				for j, part in ipairs(parts) do
-					Printf("      " .. part.Part .. " " .. part.Name .. " inFade: " .. toSeconds(part.CueInFade))
-				end
-			else
-				Printf("inFade: " .. toSeconds(cue:Children()[1].CueInFade))
-				--exportData[i] = makeLine(cue)
-			end
-		end
-		if cue.Name == "OffCue" then
-			Printf(cue.Name .. " is the offcue")
-		end
-	end
+	-- ============================ END POPUP =================================
 
 	--============================= START PDF STUFF ===========================
 	--Export data
@@ -741,12 +710,17 @@ local function Main(displayHandle, argument)
 	-- Create the initial page
 	local page = p:new_page()
 	table.insert(pages, page)
-
 	page:save()
-
+	local pageCount = 1
+	-- ============= TEXT OPTIONS =================
 	local textSize = 8
 	local headerSize = 16
+	local currentY = 570
+	local currentPage = page
+	local nextLine = 15
+	-- ===========================================
 
+	-- =================== PRINT METHODS =========
 	local function printElement(page, data, posX, posY, font, fontSize)
 		if font ~= nil and fontSize ~= nil then
 			page:begin_text()
@@ -807,7 +781,7 @@ local function Main(displayHandle, argument)
 		printElement(page, documentTitle, 20, 725, bold, headerSize)
 		local versionString = "Software version: " .. softwareVersion .. ", Host: " .. host
 		printElement(page, versionString, 20, 685)
-		local showfileString = "Showfile: " .. Root().manetsocket.showfile
+		local showfileString = "Showfile: " .. showFileName
 		printElement(page, showfileString, 20, 670)
 		local sequenceString = "Sequence: " .. selectedSequence.Name
 		printElement(page, sequenceString, 20, 655)
@@ -815,8 +789,6 @@ local function Main(displayHandle, argument)
 		printElement(page, authorString, 20, 640)
 		page:restore()
 	end
-
-	printDocumentHeader(page)
 
 	local function printTableHeader(page, yPos)
 		printElement(page, "#", xPosNumber, yPos)
@@ -829,126 +801,6 @@ local function Main(displayHandle, argument)
 		printElement(page, "Trig", xPosTrig, yPos)
 		printSeparationLine(page, yPos)
 	end
-
-	printTableHeader(page, yPosHeaderRow)
-
-	local function getCuesForSequence(sequence)
-		local returnTable = {}
-		local allCues = selectedSequence:Children()
-		for _, cue in ipairs(allCues) do
-			table.insert(returnTable, cue)
-		end
-		return returnTable
-	end
-
-	local function emptyIfNil(obj)
-		if obj == nil then
-			return "-"
-		else
-			return obj
-		end
-	end
-
-	local function splitByChunk(text, chunkSize)
-		local s = {}
-		for i = 1, #text, chunkSize do
-			s[#s + 1] = text:sub(i, i + chunkSize - 1)
-		end
-		return s
-	end
-
-	local function truncateString(str, max_length)
-		if #str > max_length then
-			local truncatedString = str:sub(1, max_length) .. "..."
-			return truncatedString
-		else
-			return str
-		end
-	end
-
-	local function cleanupCues(rawList)
-		local cleanedList = {}
-		local offCue = {}
-		local cueZero = {}
-		for i, cue in ipairs(rawList) do
-			if cue.Name == "OffCue" then
-				Printf("OffCue should be included? " .. tostring(includeOffCue))
-				if includeOffCue then
-					offCue.name = cue.Name
-					offCue.number = "-"
-					offCue.note = emptyIfNil(cue.Note)
-					offCue.parts = {}
-					local part1 = cue:Children()[1]
-					offCue.trigType = emptyIfNil(cue.TrigType)
-					offCue.trigTime = toSeconds(cue.TrigTime)
-					local offCuePart = {}
-					offCuePart.inFade = toSeconds(part1.CueInFade)
-					offCuePart.outFade = toSeconds(part1.CueOutFade)
-					offCuePart.inDelay = toSeconds(part1.CueInDelay)
-					offCuePart.outDelay = toSeconds(part1.CueOutDelay)
-					table.insert(offCue.parts, offCuePart)
-				else
-					--skip
-				end
-			elseif cue.Name == "CueZero" then
-				Printf("CueZero should be included? " .. tostring(includeCueZero))
-				if includeCueZero then
-					cueZero.name = cue.Name
-					cueZero.number = "0"
-					cueZero.note = emptyIfNil(cue.Note)
-					cueZero.parts = {}
-					local part1 = cue:Children()[1]
-					cueZero.trigType = emptyIfNil(cue.TrigType)
-					cueZero.trigTime = toSeconds(cue.TrigTime)
-					local cueZeroPart = {}
-					cueZeroPart.inFade = toSeconds(part1.CueInFade)
-					cueZeroPart.outFade = toSeconds(part1.CueOutFade)
-					cueZeroPart.inDelay = toSeconds(part1.CueInDelay)
-					cueZeroPart.outDelay = toSeconds(part1.CueOutDelay)
-					table.insert(cueZero.parts, cueZeroPart)
-					table.insert(cleanedList, cueZero)
-				else
-					--skip
-				end
-			else
-				local cueObj = {}
-				cueObj.number = cue.No / 1000
-				cueObj.name = cue.Name
-				cueObj.note = emptyIfNil(cue.Note)
-				cueObj.trigType = emptyIfNil(cue.TrigType)
-				cueObj.trigTime = toSeconds(cue.TrigTime)
-				cueObj.parts = {}
-				for i, part in ipairs(cue:Children()) do
-					local partObj = {}
-					partObj.name = emptyIfNil(part.Name)
-					partObj.note = emptyIfNil(part.Note)
-					partObj.number = emptyIfNil(part.Part)
-					partObj.inFade = toSeconds(part.CueInFade)
-					partObj.outFade = toSeconds(part.CueOutFade)
-					partObj.inDelay = toSeconds(part.CueInDelay)
-					partObj.outDelay = toSeconds(part.CueOutDelay)
-					table.insert(cueObj.parts, partObj)
-				end
-				table.insert(cleanedList, cueObj)
-			end
-		end
-		if includeOffCue then
-			table.insert(cleanedList, offCue)
-		end
-		return cleanedList
-	end
-
-	local currentY = 570
-	local currentPage = page
-	local pageCount = 1
-	local nextLine = 15
-
-	local lastUniverse = 0
-	local lastStage = nil
-
-	local maxFixtureTypeNameLength = 45
-	local maxFixtureNameLength = 32
-	local maxStageNameLength = 80
 
 	local function newPage()
 		local newPage = p:new_page()
@@ -1059,17 +911,88 @@ local function Main(displayHandle, argument)
 		newpageIfNeeded()
 	end
 
+	local function cleanupCues(rawList)
+		local cleanedList = {}
+		local offCue = {}
+		local cueZero = {}
+		for i, cue in ipairs(rawList) do
+			if cue.Name == "OffCue" then
+				Printf("OffCue should be included? " .. tostring(includeOffCue))
+				if includeOffCue then
+					offCue.name = cue.Name
+					offCue.number = "-"
+					offCue.note = emptyIfNil(cue.Note)
+					offCue.parts = {}
+					local part1 = cue:Children()[1]
+					offCue.trigType = emptyIfNil(cue.TrigType)
+					offCue.trigTime = toSeconds(cue.TrigTime)
+					local offCuePart = {}
+					offCuePart.inFade = toSeconds(part1.CueInFade)
+					offCuePart.outFade = toSeconds(part1.CueOutFade)
+					offCuePart.inDelay = toSeconds(part1.CueInDelay)
+					offCuePart.outDelay = toSeconds(part1.CueOutDelay)
+					table.insert(offCue.parts, offCuePart)
+				else
+					--skip
+				end
+			elseif cue.Name == "CueZero" then
+				Printf("CueZero should be included? " .. tostring(includeCueZero))
+				if includeCueZero then
+					cueZero.name = cue.Name
+					cueZero.number = "0"
+					cueZero.note = emptyIfNil(cue.Note)
+					cueZero.parts = {}
+					local part1 = cue:Children()[1]
+					cueZero.trigType = emptyIfNil(cue.TrigType)
+					cueZero.trigTime = toSeconds(cue.TrigTime)
+					local cueZeroPart = {}
+					cueZeroPart.inFade = toSeconds(part1.CueInFade)
+					cueZeroPart.outFade = toSeconds(part1.CueOutFade)
+					cueZeroPart.inDelay = toSeconds(part1.CueInDelay)
+					cueZeroPart.outDelay = toSeconds(part1.CueOutDelay)
+					table.insert(cueZero.parts, cueZeroPart)
+					table.insert(cleanedList, cueZero)
+				else
+					--skip
+				end
+			else
+				local cueObj = {}
+				cueObj.number = cue.No / 1000
+				cueObj.name = cue.Name
+				cueObj.note = emptyIfNil(cue.Note)
+				cueObj.trigType = emptyIfNil(cue.TrigType)
+				cueObj.trigTime = toSeconds(cue.TrigTime)
+				cueObj.parts = {}
+				for i, part in ipairs(cue:Children()) do
+					local partObj = {}
+					partObj.name = emptyIfNil(part.Name)
+					partObj.note = emptyIfNil(part.Note)
+					partObj.number = emptyIfNil(part.Part)
+					partObj.inFade = toSeconds(part.CueInFade)
+					partObj.outFade = toSeconds(part.CueOutFade)
+					partObj.inDelay = toSeconds(part.CueInDelay)
+					partObj.outDelay = toSeconds(part.CueOutDelay)
+					table.insert(cueObj.parts, partObj)
+				end
+				table.insert(cleanedList, cueObj)
+			end
+		end
+		if includeOffCue then
+			table.insert(cleanedList, offCue)
+		end
+		return cleanedList
+	end
+	-- ================================================
+	-- =============== ACTUAL CODE =================
 	local cuesRaw = getCuesForSequence(selectedSequence)
 	local cues = cleanupCues(cuesRaw)
 
-	Printf("Clean list contains " .. #cues .. " cues")
-	Printf("The first cue has number " .. cues[1].number .. " and name " .. cues[1].name)
+	printDocumentHeader(page)
+	printTableHeader(page, yPosHeaderRow)
 
 	for i, cue in ipairs(cues) do
-		Printf("Printing row " .. i)
-		printCueRow(currentPage, cue, currentY)
+		printCueRow(currentPage, cue)
 	end
-
 
 	for k, v in pairs(pages) do
 		-- Add pagination to the page
@@ -1090,6 +1013,7 @@ local function Main(displayHandle, argument)
 		v:add()
 	end
 
+	-- ======================== SAVE PDF =======================
 	local internalStoragePath = GetPath(Enums.PathType.Library) .. "/" .. fileName .. ".pdf"
 	local externalStoragePath = drivePath .. "/" .. fileName .. ".pdf"
 	local storagePath
@@ -1100,7 +1024,7 @@ local function Main(displayHandle, argument)
 	end
 	p:write(storagePath)
 	Printf("PDF created successfully at " .. storagePath)
-	-- ============================ END PDF STUFF =============================
+	-- =======================================================
 end
 
 return Main
