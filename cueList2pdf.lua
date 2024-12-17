@@ -513,17 +513,17 @@ local footerNotice = "GrandMA3 - CueList2PDF"
 local errMsgNoUSBDevice = "Please connect a removable storage device to the system."
 
 local xPosNumber = 20
-local xPosPart = 60
-local xPosName = 100
+local xPosPart = 50
+local xPosName = 90
 local xPosInfo = 200
-local xPosFade = 530
+local xPosFade = 525
 local xPosTrig = 570
 
 local yPosHeaderRow = 600
 local yPosStageName = 770
 
 local MAX_NAME_LENGTH = 20
-local MAX_INFO_LENGTH = 75
+local MAX_INFO_LENGTH = 65
 
 local function Main(displayHandle, argument)
 	require 'gma3_debug' ()
@@ -546,8 +546,6 @@ local function Main(displayHandle, argument)
 	for i, seq in ipairs(allSequencesNotEmpty) do
 		Printf(seq.Name)
 	end
-
-
 	--Utils
 	local function toSeconds(fadeTime)
 		local value = "-"
@@ -621,7 +619,7 @@ local function Main(displayHandle, argument)
 
 	-- If no removeable storage device was found, the plugin will warn
 	local res = {}
-	if usbConnected == false then
+	if usbConnected == false and host == "onPC" then
 		res =
 			MessageBox(
 				{
@@ -629,6 +627,16 @@ local function Main(displayHandle, argument)
 					message = "No USB drive detected, file will be saved to internal drive.",
 					display = displayHandle.index,
 					commands = { { value = 1, name = "Ok" }, { value = 2, name = "Cancel" } },
+				}
+			)
+	elseif usbConnected == false and host ~= "onPC" then
+		res =
+			MessageBox(
+				{
+					title = "Warning",
+					message = "No USB drive detected, please check your device and try again",
+					display = displayHandle.index,
+					commands = { { value = 2, name = "Ok" } },
 				}
 			)
 	else
@@ -670,7 +678,7 @@ local function Main(displayHandle, argument)
 	local printNotes = settings.states["Include cue notes"]
 
 	if printNotes == false then
-		MAX_NAME_LENGTH = 95
+		MAX_NAME_LENGTH = 85
 	end
 
 	for k, v in pairs(settings.selectors) do
@@ -724,8 +732,8 @@ local function Main(displayHandle, argument)
 	-- Create a new PDF document
 	local p = PDF.new()
 
-	local helv = p:new_font { name = "Helvetica" }
-	local bold = p:new_font { name = "Helvetica", weight = "-Bold" }
+	local helv = p:new_font { name = "Courier" }
+	local bold = p:new_font { name = "Courier", weight = "-Bold" }
 
 	-- Table for holding all pages which will be created during the printing process
 	local pages = {}
@@ -736,8 +744,8 @@ local function Main(displayHandle, argument)
 
 	page:save()
 
-	local textSize = 10
-	local headerSize = 22
+	local textSize = 8
+	local headerSize = 16
 
 	local function printElement(page, data, posX, posY, font, fontSize)
 		if font ~= nil and fontSize ~= nil then
@@ -785,11 +793,11 @@ local function Main(displayHandle, argument)
 		end
 		page:setrgbcolor("fill", color.r, color.g, color.b)
 		page:newpath()
-		page:moveto(10, yPos + 13)
-		page:lineto(15, yPos + 13)
-		page:lineto(15, yPos - 7)
-		page:lineto(10, yPos - 7)
-		page:lineto(10, yPos + 13)
+		page:moveto(10, yPos + 9)
+		page:lineto(15, yPos + 9)
+		page:lineto(15, yPos - 5)
+		page:lineto(10, yPos - 5)
+		page:lineto(10, yPos + 9)
 		page:closepath()
 		page:fill()
 		page:restore()
