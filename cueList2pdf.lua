@@ -1090,7 +1090,7 @@ local function Main(displayHandle, argument)
 		v:add()
 	end
 
-	local internalStoragePath = GetPath(Enums.PathType.Library) .. "/exports/" .. fileName .. ".pdf"
+	local internalStoragePath = GetPath(Enums.PathType.Library) .. "/" .. fileName .. ".pdf"
 	local externalStoragePath = drivePath .. "/" .. fileName .. ".pdf"
 	local storagePath
 	if drivePath ~= "" then
