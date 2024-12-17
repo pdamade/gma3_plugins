@@ -925,7 +925,7 @@ local function Main(displayHandle, argument)
 	local currentY = 570
 	local currentPage = page
 	local pageCount = 1
-	local nextLine = 20
+	local nextLine = 15
 
 	local lastUniverse = 0
 	local lastStage = nil
@@ -933,18 +933,6 @@ local function Main(displayHandle, argument)
 	local maxFixtureTypeNameLength = 45
 	local maxFixtureNameLength = 32
 	local maxStageNameLength = 80
-
-	local function newpageIfNeeded()
-		currentY = currentY - nextLine
-		if currentY < 50 then
-			local newPage = p:new_page()
-			pageCount = pageCount + 1
-			table.insert(pages, newPage)
-			currentPage = newPage
-			printTableHeader(currentPage, 750)
-			currentY = 720
-		end
-	end
 
 	local function newPage()
 		local newPage = p:new_page()
@@ -955,6 +943,14 @@ local function Main(displayHandle, argument)
 		currentY = 720
 	end
 
+	local function newpageIfNeeded()
+		currentY = currentY - nextLine
+		if currentY < 50 then
+			Printf("Creating new page it is needed")
+			newPage()
+		end
+	end
+
 	local function printElementWithTextWrap(page, data, maxSize, xPos, yPos)
 		local splitData = {}
 		if #data > maxSize then
@@ -963,6 +959,8 @@ local function Main(displayHandle, argument)
 			-- check if will fit on page
 			if yPos - #splitData * nextLine < 50 then
 				newPage()
+				yPos = currentY
+				page = currentPage
 			end
 			-- print onmultiple lines
 			local tempY = yPos
@@ -980,15 +978,23 @@ local function Main(displayHandle, argument)
 		end
 	end
 
+	local function updatePage(page, currentPage)
+		if page ~= currentPage then
+			page = currentPage
+		end
+		return page
+	end
 
 	local function printCueRow(page, cue)
-		printElement(page, cue.number, xPosNumber, currentY)
 		local cueNameLineSize = printElementWithTextWrap(page, cue.name, MAX_NAME_LENGTH, xPosName, currentY)
+		page = updatePage(page, currentPage)
 		local cueNoteLineSize = printElementWithTextWrap(page, cue.note, MAX_INFO_LENGTH, xPosInfo, currentY)
+		page = updatePage(page, currentPage)
 		local isMultipart = #cue.parts > 1
 		local isAutoTrig = cue.trigType ~= 0 and cue.trigType ~= "-"
 		local part1 = cue.parts[1]
 		local fadeString = part1.inFade .. "/" .. part1.outFade
+		printElement(page, cue.number, xPosNumber, currentY)
 		printElement(page, fadeString, xPosFade, currentY)
 		if isAutoTrig then -- follow or time cues
 			tagRow(page, "red", currentY)
