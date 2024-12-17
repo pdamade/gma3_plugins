@@ -522,6 +522,9 @@ local xPosTrig = 570
 local yPosHeaderRow = 600
 local yPosStageName = 770
 
+local MAX_NAME_LENGTH = 20
+local MAX_INFO_LENGTH = 75
+
 local function Main(displayHandle, argument)
 	require 'gma3_debug' ()
 	debuggee.print("log", "start")
@@ -730,7 +733,7 @@ local function Main(displayHandle, argument)
 	local textSize = 10
 	local headerSize = 22
 
-	function printElement(page, data, posX, posY, font, fontSize)
+	local function printElement(page, data, posX, posY, font, fontSize)
 		if font ~= nil and fontSize ~= nil then
 			page:begin_text()
 			page:set_font(font, fontSize)
@@ -801,7 +804,7 @@ local function Main(displayHandle, argument)
 
 	printDocumentHeader(page)
 
-	function printTableHeader(page, yPos)
+	local function printTableHeader(page, yPos)
 		printElement(page, "#", xPosNumber, yPos)
 		printElement(page, "Part", xPosPart, yPos)
 		printElement(page, "Name", xPosName, yPos)
@@ -813,7 +816,7 @@ local function Main(displayHandle, argument)
 
 	printTableHeader(page, yPosHeaderRow)
 
-	function getCuesForSequence(sequence)
+	local function getCuesForSequence(sequence)
 		local returnTable = {}
 		local allCues = selectedSequence:Children()
 		for _, cue in ipairs(allCues) do
@@ -822,7 +825,7 @@ local function Main(displayHandle, argument)
 		return returnTable
 	end
 
-	function emptyIfNil(obj)
+	local function emptyIfNil(obj)
 		if obj == nil then
 			return "-"
 		else
@@ -830,7 +833,24 @@ local function Main(displayHandle, argument)
 		end
 	end
 
-	function cleanupCues(rawList)
+	local function splitByChunk(text, chunkSize)
+		local s = {}
+		for i = 1, #text, chunkSize do
+			s[#s + 1] = text:sub(i, i + chunkSize - 1)
+		end
+		return s
+	end
+
+	local function truncateString(str, max_length)
+		if #str > max_length then
+			local truncatedString = str:sub(1, max_length) .. "..."
+			return truncatedString
+		else
+			return str
+		end
+	end
+
+	local function cleanupCues(rawList)
 		local cleanedList = {}
 		local offCue = {}
 		local cueZero = {}
@@ -905,7 +925,7 @@ local function Main(displayHandle, argument)
 	local currentY = 570
 	local currentPage = page
 	local pageCount = 1
-	local nextLine = 20
+	local nextLine = 15
 
 	local lastUniverse = 0
 	local lastStage = nil
@@ -914,26 +934,67 @@ local function Main(displayHandle, argument)
 	local maxFixtureNameLength = 32
 	local maxStageNameLength = 80
 
+	local function newPage()
+		local newPage = p:new_page()
+		pageCount = pageCount + 1
+		table.insert(pages, newPage)
+		currentPage = newPage
+		printTableHeader(currentPage, 750)
+		currentY = 720
+	end
+
 	local function newpageIfNeeded()
 		currentY = currentY - nextLine
 		if currentY < 50 then
-			local newPage = p:new_page()
-			pageCount = pageCount + 1
-			table.insert(pages, newPage)
-			currentPage = newPage
-			printTableHeader(currentPage, 750)
-			currentY = 720
+			Printf("Creating new page it is needed")
+			newPage()
 		end
 	end
 
+	local function printElementWithTextWrap(page, data, maxSize, xPos, yPos)
+		local splitData = {}
+		if #data > maxSize then
+			-- split in chunks
+			splitData = splitByChunk(data, maxSize)
+			-- check if will fit on page
+			if yPos - #splitData * nextLine < 50 then
+				newPage()
+				yPos = currentY
+				page = currentPage
+			end
+			-- print onmultiple lines
+			local tempY = yPos
+			for i, line in ipairs(splitData) do
+				printElement(page, splitData[i], xPos, tempY)
+				tempY = tempY - nextLine
+			end
+		else
+			printElement(page, data, xPos, yPos)
+		end
+		if #splitData > 1 then
+			return #splitData
+		else
+			return 1
+		end
+	end
+
+	local function updatePage(page, currentPage)
+		if page ~= currentPage then
+			page = currentPage
+		end
+		return page
+	end
+
 	local function printCueRow(page, cue)
-		printElement(page, cue.number, xPosNumber, currentY)
-		printElement(page, cue.name, xPosName, currentY)
-		printElement(page, cue.note, xPosInfo, currentY)
+		local cueNameLineSize = printElementWithTextWrap(page, cue.name, MAX_NAME_LENGTH, xPosName, currentY)
+		page = updatePage(page, currentPage)
+		local cueNoteLineSize = printElementWithTextWrap(page, cue.note, MAX_INFO_LENGTH, xPosInfo, currentY)
+		page = updatePage(page, currentPage)
 		local isMultipart = #cue.parts > 1
 		local isAutoTrig = cue.trigType ~= 0 and cue.trigType ~= "-"
 		local part1 = cue.parts[1]
 		local fadeString = part1.inFade .. "/" .. part1.outFade
+		printElement(page, cue.number, xPosNumber, currentY)
 		printElement(page, fadeString, xPosFade, currentY)
 		if isAutoTrig then -- follow or time cues
 			tagRow(page, "red", currentY)
@@ -949,20 +1010,29 @@ local function Main(displayHandle, argument)
 			tagRow(page, "green", currentY)
 			printElement(page, "Go", xPosTrig, currentY)
 		end
+		local partExtraLines = 0
+		local cueExtraLines = math.max(cueNameLineSize, cueNoteLineSize)
 		if isMultipart then -- multipart cues
+			local partY = currentY - nextLine * (cueExtraLines)
 			for i = 2, #cue.parts do
 				local part = cue.parts[i]
 				newpageIfNeeded()
-				printElement(page, part.number, xPosPart, currentY)
-				printElement(page, part.name, xPosName, currentY)
-				printElement(page, part.note, xPosInfo, currentY)
-				local fadeString = part.inFade .. "/" .. part.outFade
-				printElement(page, fadeString, xPosFade, currentY)
-				tagRow(page, "blue", currentY)
+				printElement(page, part.number, xPosPart, partY)
+				local partNameLineSize = printElementWithTextWrap(page, part.name, MAX_NAME_LENGTH, xPosName,
+					partY)
+				local partNoteLineSize = printElementWithTextWrap(page, part.note, MAX_INFO_LENGTH, xPosInfo,
+					partY)
+				local partFadeString = part.inFade .. "/" .. part.outFade
+				printElement(page, partFadeString, xPosFade, partY)
+				tagRow(page, "blue", partY)
+				partY = partY - nextLine * math.max(partNameLineSize, partNoteLineSize)
+				partExtraLines = partExtraLines + math.max(partNameLineSize, partNoteLineSize)
 			end
 		end
 
 		local color = { 0.8, 0.8, 0.8 }
+		local extraLines = cueExtraLines + partExtraLines
+		currentY = currentY - nextLine * (extraLines - #cue.parts)
 		printSeparationLine(page, currentY, color)
 		newpageIfNeeded()
 	end
@@ -974,6 +1044,7 @@ local function Main(displayHandle, argument)
 	Printf("The first cue has number " .. cues[1].number .. " and name " .. cues[1].name)
 
 	for i, cue in ipairs(cues) do
+		Printf("Printing row " .. i)
 		printCueRow(currentPage, cue, currentY)
 	end
 
