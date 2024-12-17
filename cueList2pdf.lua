@@ -596,8 +596,9 @@ local function Main(displayHandle, argument)
 	}
 
 	local states = {
-		{ name = "Include CueZero", state = false },
-		{ name = "Include OffCue",  state = false }
+		{ name = "Include CueZero",   state = false },
+		{ name = "Include OffCue",    state = false },
+		{ name = "Include cue notes", state = true }
 	}
 
 	-- Helper for assigning the drives in the list an ID
@@ -666,6 +667,11 @@ local function Main(displayHandle, argument)
 	local drivePath = ""
 	local includeCueZero = settings.states["Include CueZero"]
 	local includeOffCue = settings.states["Include OffCue"]
+	local printNotes = settings.states["Include cue notes"]
+
+	if printNotes == false then
+		MAX_NAME_LENGTH = 95
+	end
 
 	for k, v in pairs(settings.selectors) do
 		if k == "Sequence" then
@@ -808,7 +814,9 @@ local function Main(displayHandle, argument)
 		printElement(page, "#", xPosNumber, yPos)
 		printElement(page, "Part", xPosPart, yPos)
 		printElement(page, "Name", xPosName, yPos)
-		printElement(page, "Info", xPosInfo, yPos)
+		if printNotes then
+			printElement(page, "Info", xPosInfo, yPos)
+		end
 		printElement(page, "Fade", xPosFade, yPos)
 		printElement(page, "Trig", xPosTrig, yPos)
 		printSeparationLine(page, yPos)
@@ -988,8 +996,11 @@ local function Main(displayHandle, argument)
 	local function printCueRow(page, cue)
 		local cueNameLineSize = printElementWithTextWrap(page, cue.name, MAX_NAME_LENGTH, xPosName, currentY)
 		page = updatePage(page, currentPage)
-		local cueNoteLineSize = printElementWithTextWrap(page, cue.note, MAX_INFO_LENGTH, xPosInfo, currentY)
-		page = updatePage(page, currentPage)
+		local cueNoteLineSize = 0
+		if printNotes then
+			cueNoteLineSize = printElementWithTextWrap(page, cue.note, MAX_INFO_LENGTH, xPosInfo, currentY)
+			page = updatePage(page, currentPage)
+		end
 		local isMultipart = #cue.parts > 1
 		local isAutoTrig = cue.trigType ~= 0 and cue.trigType ~= "-"
 		local part1 = cue.parts[1]
@@ -1020,8 +1031,11 @@ local function Main(displayHandle, argument)
 				printElement(page, part.number, xPosPart, partY)
 				local partNameLineSize = printElementWithTextWrap(page, part.name, MAX_NAME_LENGTH, xPosName,
 					partY)
-				local partNoteLineSize = printElementWithTextWrap(page, part.note, MAX_INFO_LENGTH, xPosInfo,
-					partY)
+				local partNoteLineSize = 0
+				if printNotes then
+					partNoteLineSize = printElementWithTextWrap(page, part.note, MAX_INFO_LENGTH, xPosInfo,
+						partY)
+				end
 				local partFadeString = part.inFade .. "/" .. part.outFade
 				printElement(page, partFadeString, xPosFade, partY)
 				tagRow(page, "blue", partY)
