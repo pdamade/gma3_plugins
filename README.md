@@ -24,9 +24,15 @@ This plugin allows you to export a sequence/cue list in a PDF file.
 - Popup will let you pick a title and filename. 
 - If using onPC, saving to the internal drive is possible, simply run the plugin without any external drive connected. The file will be saved in the `gma3_library`folder of your installation.
 - If on console, the file will be saved at the root of your external drive. Saving to internal os not possible on console.
+- You can find an example PDF in this folder. 
 
 ## Warning
 This is provided as is. I have tested it on an M1 MacBook and onPC v2.1.1, as well as on a MA3 Light also running 2.1 and both behaved as expected.\
 This is also the first plugin I write and the first Lua code I write, so look at it at your own risk. It is a horrifying mess which may one day be cleaned up, or not.\
 More features may be added in the future, suggestions are always welcome.
+
+## Possible improvements / things I might work on when I have time
+- Make text wrap smarter
+- Add more optional cue data to the render
+- Automatic sizing of columns
 
