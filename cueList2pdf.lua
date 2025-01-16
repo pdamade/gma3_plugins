@@ -536,17 +536,40 @@ local function Main(displayHandle, argument)
 	end
 
 	--Utils
-	local function toSeconds(fadeTime)
-		local value = "-"
-		if fadeTime == nil then
-			return value
+	local function isV2OrLater(versionString)
+		local subversion = versionString:sub(3, 3)
+		if tonumber(subversion) > 1 then
+			return true
+		else
+			return false
 		end
-		if fadeTime > 0 then
-			value = tostring(fadeTime / (256 ^ 3))
-		elseif fadeTime == 0 then
-			value = "-"
+	end
+
+	local isV2 = isV2OrLater(softwareVersion)
+	Printf("Runing v2.2? " .. tostring(isV2))
+
+	local function toTimeString(time)
+		local returnValue = "-"
+		if time == nil then
+			return returnValue
 		end
-		return value
+		if tonumber(time) == nil then
+			return returnValue
+		end
+		if isV2 then
+			if time > 0 then
+				returnValue = time
+			else
+				returnValue = "-"
+			end
+		else
+			if time > 0 then
+				returnValue = tostring(time / (256 ^ 3))
+			elseif time == 0 then
+				returnValue = "-"
+			end
+		end
+		return returnValue
 	end
 
 	local function getCuesForSequence(sequence)
@@ -925,12 +948,12 @@ local function Main(displayHandle, argument)
 					offCue.parts = {}
 					local part1 = cue:Children()[1]
 					offCue.trigType = emptyIfNil(cue.TrigType)
-					offCue.trigTime = toSeconds(cue.TrigTime)
+					offCue.trigTime = toTimeString(cue.TrigTime)
 					local offCuePart = {}
-					offCuePart.inFade = toSeconds(part1.CueInFade)
-					offCuePart.outFade = toSeconds(part1.CueOutFade)
-					offCuePart.inDelay = toSeconds(part1.CueInDelay)
-					offCuePart.outDelay = toSeconds(part1.CueOutDelay)
+					offCuePart.inFade = toTimeString(part1.CueInFade)
+					offCuePart.outFade = toTimeString(part1.CueOutFade)
+					offCuePart.inDelay = toTimeString(part1.CueInDelay)
+					offCuePart.outDelay = toTimeString(part1.CueOutDelay)
 					table.insert(offCue.parts, offCuePart)
 				else
 					--skip
@@ -944,12 +967,12 @@ local function Main(displayHandle, argument)
 					cueZero.parts = {}
 					local part1 = cue:Children()[1]
 					cueZero.trigType = emptyIfNil(cue.TrigType)
-					cueZero.trigTime = toSeconds(cue.TrigTime)
+					cueZero.trigTime = toTimeString(cue.TrigTime)
 					local cueZeroPart = {}
-					cueZeroPart.inFade = toSeconds(part1.CueInFade)
-					cueZeroPart.outFade = toSeconds(part1.CueOutFade)
-					cueZeroPart.inDelay = toSeconds(part1.CueInDelay)
-					cueZeroPart.outDelay = toSeconds(part1.CueOutDelay)
+					cueZeroPart.inFade = toTimeString(part1.CueInFade)
+					cueZeroPart.outFade = toTimeString(part1.CueOutFade)
+					cueZeroPart.inDelay = toTimeString(part1.CueInDelay)
+					cueZeroPart.outDelay = toTimeString(part1.CueOutDelay)
 					table.insert(cueZero.parts, cueZeroPart)
 					table.insert(cleanedList, cueZero)
 				else
@@ -961,17 +984,17 @@ local function Main(displayHandle, argument)
 				cueObj.name = cue.Name
 				cueObj.note = emptyIfNil(cue.Note)
 				cueObj.trigType = emptyIfNil(cue.TrigType)
-				cueObj.trigTime = toSeconds(cue.TrigTime)
+				cueObj.trigTime = toTimeString(cue.TrigTime)
 				cueObj.parts = {}
 				for i, part in ipairs(cue:Children()) do
 					local partObj = {}
 					partObj.name = emptyIfNil(part.Name)
 					partObj.note = emptyIfNil(part.Note)
 					partObj.number = emptyIfNil(part.Part)
-					partObj.inFade = toSeconds(part.CueInFade)
-					partObj.outFade = toSeconds(part.CueOutFade)
-					partObj.inDelay = toSeconds(part.CueInDelay)
-					partObj.outDelay = toSeconds(part.CueOutDelay)
+					partObj.inFade = toTimeString(part.CueInFade)
+					partObj.outFade = toTimeString(part.CueOutFade)
+					partObj.inDelay = toTimeString(part.CueInDelay)
+					partObj.outDelay = toTimeString(part.CueOutDelay)
 					table.insert(cueObj.parts, partObj)
 				end
 				table.insert(cleanedList, cueObj)
