@@ -181,6 +181,7 @@ function findNextAvailableMacroNumber()
 	end
 	Printf("But only " .. #allMacrosNotEmpty .. " valid ones")
 	if #allMacrosNotEmpty == 0 then
+		Cmd("Store Macro 1") -- if the macro pool doesn't exist the plugin will crash
 		return 1
 	else
 		return allMacrosNotEmpty[#allMacrosNotEmpty].No + 1
@@ -195,6 +196,7 @@ end
 
 function createOSCMacro(number, name, command, range)
 	local macroRoot = DataPool().Macros
+	Printf("Creating macro "..number)
 	local newOSCMacro = macroRoot:Create(number)
 	newOSCMacro:Set("Name", name)
 	makeLines(newOSCMacro, command, range)
@@ -220,7 +222,9 @@ function makeOscCommand(command)
 end
 
 function setupLayout(pageNumber)
-	projectorPage = DataPool().Pages:Create(tonumber(pageNumber))
+	Cmd(string.format("Store Page %d", pageNumber))
+	pageNumber = tonumber(pageNumber)
+	projectorPage = DataPool().Pages[pageNumber]
 
 	-- Functions on knobs
 	assignRotaryEncoder(401, "ZOOM", "ZOOM-", "ZOOM+")
