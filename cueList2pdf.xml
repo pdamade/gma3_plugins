@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<GMA3 DataVersion="2.0.2.0">
-	<Plugin Index="1" Name="cueList2pdf" Path="" Version="1.0.0.0" Author="Paul Damade">
-		<ComponentLua Index="1" FileName="cueList2pdf.lua" />
-	</Plugin>
-</GMA3>
