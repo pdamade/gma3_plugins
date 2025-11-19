@@ -1,3 +1,5 @@
+-- WARNING all code is provided as is with no warranty of any kind. Run at your own risk
+
 local macroStart = 1
 local oscDestinationIP = "192.168.10.100"
 local oscPort = 12000

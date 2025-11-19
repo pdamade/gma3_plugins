@@ -6,6 +6,7 @@ It will probably work with other projectors of the same brand as they share a lo
 ### What it does
 The plugin will set up a new OSC interface that will send commands to a host Raspberry Pi running the amazing [Chataigne](https://benjamin.kuperberg.fr/chataigne/en) software. Chataigne essentially acts as an OSC to Serial translation layer. It can do a lot more, I encourage you to check it out.
 ### Usage
+Download `projectorControl.lua` and `projectorControl.xml` and place them in `gma3_library/datapools/plugins` folder of your onPC install or USB drive.\
 Import and run the plugin. A popup window will allow you to adjust the OSC setings and pick where you want the macros to be created. If you check "Auto macro index" box it will add them after the last valid macro in your Default pool.\
 Make sure that your Network Interface configuration matches the IP range of the OSC destination.
 

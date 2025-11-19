@@ -1,3 +1,4 @@
+-- WARNING all code is provided as is with no warranty of any kind. Run at your own risk
 -- PDF lib
 PDF = {}
 PDF.new = function()
